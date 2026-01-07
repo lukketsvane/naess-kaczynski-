@@ -277,9 +277,9 @@ export function Translator() {
     // Fjern ekstra linjeskift
     let processed = text.replace(/\n{3,}/g, '\n\n')
 
-    // Kombiner "## §X" med neste paragraf, gjør § bold og større
+    // Kombiner "## §X" med neste paragraf (1 eller 2 linjeskift), gjør § bold og større
     processed = processed.replace(
-      /## §(\d+)\s*\n\n([^\n#])/g,
+      /## §(\d+)\s*\n+([^\n#])/g,
       (_, num, firstChar) => `<span id="avsnitt-${num}" class="font-bold text-lg">§${num}</span> ${firstChar}`
     )
 
