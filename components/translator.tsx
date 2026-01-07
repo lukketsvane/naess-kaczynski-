@@ -285,18 +285,6 @@ export function Translator() {
                 {translatedText.replace(/\n{3,}/g, '\n\n')}
               </ReactMarkdown>
             </div>
-
-
-            <div className="flex gap-3">
-              <Button onClick={downloadPDF} className="gap-2">
-                <Download className="h-4 w-4" />
-                Last ned PDF
-              </Button>
-              <Button onClick={resetTranslation} variant="outline" className="gap-2 bg-transparent">
-                <RotateCcw className="h-4 w-4" />
-                Start på nytt
-              </Button>
-            </div>
           </div>
         )}
       </div>
