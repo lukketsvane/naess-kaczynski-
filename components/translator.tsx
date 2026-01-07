@@ -178,7 +178,7 @@ export function Translator() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-6 py-16">
+    <div className="max-w-3xl mx-auto px-4 md:px-8 py-16">
       {/* Header */}
       <h1 className="font-serif text-3xl md:text-4xl font-bold text-center text-foreground mb-6 text-balance">
         Det industrielle samfunnet og dets framtid
