@@ -3,7 +3,7 @@ import fs from "fs" // needs fs promises? fs is usually not available in edge, b
 import path from "path"
 import yaml from "js-yaml"
 
-export const maxDuration = 300; // Allow longer timeouts for translation
+export const maxDuration = 60; // Allow longer timeouts for translation
 export const dynamic = 'force-dynamic';
 
 
