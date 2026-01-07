@@ -218,7 +218,7 @@ export function Translator() {
                   },
                 }}
               >
-                {translatedText}
+                {translatedText.replace(/\n{3,}/g, '\n')}
               </ReactMarkdown>
             </div>
           </div>
@@ -242,7 +242,7 @@ export function Translator() {
                     },
                   }}
                 >
-                  {translatedText}
+                  {translatedText.replace(/\n{3,}/g, '\n')}
                 </ReactMarkdown>
               </div>
             )}
@@ -269,7 +269,7 @@ export function Translator() {
                   },
                 }}
               >
-                {translatedText}
+                {translatedText.replace(/\n{3,}/g, '\n')}
               </ReactMarkdown>
             </div>
 
