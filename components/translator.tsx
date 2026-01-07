@@ -150,93 +150,75 @@ interface TranslatorProps {
 
 export function Translator({ initialText }: TranslatorProps) {
   const [currentSection, setCurrentSection] = useState(1)
-  const [isInteracting, setIsInteracting] = useState(false)
-  const scrubberRef = useRef<HTMLDivElement>(null)
+  const [dragging, setDragging] = useState(false)
+  const barRef = useRef<HTMLDivElement>(null)
 
-  const maxSection = 232
+  const MAX = 232
 
-  // Beregn seksjonsnummer fra Y-posisjon på scrubber
-  const getSectionFromY = (clientY: number): number => {
-    if (!scrubberRef.current) return currentSection
-    const rect = scrubberRef.current.getBoundingClientRect()
-    if (rect.height === 0) return currentSection
-    const relativeY = (clientY - rect.top) / rect.height
-    const clamped = Math.max(0, Math.min(1, relativeY))
-    const section = Math.round(1 + clamped * (maxSection - 1))
-    return Math.max(1, Math.min(maxSection, section))
+  // Scroll til seksjon basert på klikk-posisjon på baren
+  const jumpToPosition = (e: React.MouseEvent | React.TouchEvent) => {
+    const bar = barRef.current
+    if (!bar) return
+
+    const rect = bar.getBoundingClientRect()
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY
+    const percent = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height))
+    const section = Math.round(1 + percent * (MAX - 1))
+
+    setCurrentSection(section)
+    document.getElementById(`avsnitt-${section}`)?.scrollIntoView({ block: 'start' })
   }
 
-  // Naviger til seksjon
-  const goToSection = (sectionNum: number) => {
-    setCurrentSection(sectionNum)
-    const element = document.getElementById(`avsnitt-${sectionNum}`)
-    if (element) {
-      element.scrollIntoView({ block: 'start' })
-    }
-  }
-
-  // Håndter interaksjon (click, touch, drag)
-  const handleInteraction = (clientY: number) => {
-    const section = getSectionFromY(clientY)
-    goToSection(section)
-  }
-
-  // Mouse click
-  const onMouseDown = (e: React.MouseEvent) => {
+  // Mouse/touch handlers
+  const onPointerDown = (e: React.MouseEvent | React.TouchEvent) => {
     e.preventDefault()
-    setIsInteracting(true)
-    handleInteraction(e.clientY)
+    setDragging(true)
+    jumpToPosition(e)
   }
 
-  // Touch
-  const onTouchStart = (e: React.TouchEvent) => {
-    setIsInteracting(true)
-    handleInteraction(e.touches[0].clientY)
-  }
-
-  const onTouchMove = (e: React.TouchEvent) => {
-    if (isInteracting) {
-      handleInteraction(e.touches[0].clientY)
-    }
-  }
-
-  const onTouchEnd = () => setIsInteracting(false)
-
-  // Global mouse events for dragging
   useEffect(() => {
-    if (!isInteracting) return
+    if (!dragging) return
 
-    const onMove = (e: MouseEvent) => handleInteraction(e.clientY)
-    const onUp = () => setIsInteracting(false)
+    const onMove = (e: MouseEvent | TouchEvent) => {
+      const bar = barRef.current
+      if (!bar) return
+      const rect = bar.getBoundingClientRect()
+      const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY
+      const percent = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height))
+      const section = Math.round(1 + percent * (MAX - 1))
+      setCurrentSection(section)
+      document.getElementById(`avsnitt-${section}`)?.scrollIntoView({ block: 'start' })
+    }
+
+    const onUp = () => setDragging(false)
 
     window.addEventListener('mousemove', onMove)
+    window.addEventListener('touchmove', onMove)
     window.addEventListener('mouseup', onUp)
+    window.addEventListener('touchend', onUp)
     return () => {
       window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('touchmove', onMove)
       window.removeEventListener('mouseup', onUp)
+      window.removeEventListener('touchend', onUp)
     }
-  }, [isInteracting])
+  }, [dragging])
 
-  // Sync currentSection med scroll (kun når ikke interacting)
+  // Track scroll position
   useEffect(() => {
-    let ticking = false
-    const handleScroll = () => {
-      if (isInteracting || ticking) return
-      ticking = true
-      requestAnimationFrame(() => {
-        for (let i = maxSection; i >= 1; i--) {
-          const el = document.getElementById(`avsnitt-${i}`)
-          if (el && el.getBoundingClientRect().top <= 100) {
-            setCurrentSection(i)
-            break
-          }
+    if (dragging) return
+    const onScroll = () => {
+      for (let i = MAX; i >= 1; i--) {
+        const el = document.getElementById(`avsnitt-${i}`)
+        if (el && el.getBoundingClientRect().top <= 150) {
+          setCurrentSection(i)
+          return
         }
-        ticking = false
-      })
+      }
     }
-    window.addEventListener('scroll', handleScroll, { passive: true })
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [isInteracting])
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [dragging])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -361,30 +343,28 @@ export function Translator({ initialText }: TranslatorProps) {
 
   return (
     <>
-      {/* Section Scrubber - iOS-style navigation */}
+      {/* Scrollbar navigation */}
       <div
-        ref={scrubberRef}
-        className="fixed right-0 top-[15vh] h-[70vh] w-12 z-50 cursor-pointer touch-none select-none"
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
-        onMouseDown={onMouseDown}
+        ref={barRef}
+        className="fixed right-0 top-[10%] h-[80%] w-10 z-50 cursor-pointer touch-none"
+        onMouseDown={onPointerDown}
+        onTouchStart={onPointerDown}
       >
-        {/* Track background */}
-        <div className="absolute right-3 top-0 bottom-0 w-1 bg-muted-foreground/30 rounded-full" />
+        {/* Track */}
+        <div className="absolute right-3 top-0 bottom-0 w-1 bg-foreground/20 rounded-full" />
 
-        {/* Current position indicator */}
+        {/* Indicator */}
         <div
-          className="absolute right-1 w-8 h-8 bg-primary rounded-full flex items-center justify-center text-[10px] font-bold text-primary-foreground shadow-lg pointer-events-none transition-[top] duration-75"
-          style={{ top: `${((currentSection - 1) / (maxSection - 1)) * 100}%` }}
+          className="absolute right-1 w-7 h-7 -mt-3.5 bg-foreground text-background rounded-full flex items-center justify-center text-[9px] font-bold shadow-md pointer-events-none"
+          style={{ top: `${((currentSection - 1) / (MAX - 1)) * 100}%` }}
         >
           {currentSection}
         </div>
       </div>
 
-      {/* Section number popup when interacting */}
-      {isInteracting && (
-        <div className="fixed right-14 top-1/2 -translate-y-1/2 bg-foreground text-background px-4 py-2 rounded-lg text-3xl font-bold shadow-xl z-50 pointer-events-none">
+      {/* Big popup when dragging */}
+      {dragging && (
+        <div className="fixed right-16 top-1/2 -translate-y-1/2 bg-foreground text-background px-5 py-3 rounded-xl text-4xl font-bold shadow-2xl z-50">
           §{currentSection}
         </div>
       )}
