@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback, useRef, ReactNode } from "react"
+import { useState, useEffect, useCallback, useRef, ReactNode, Children, isValidElement, cloneElement, ReactElement } from "react"
 import { Button } from "@/components/ui/button"
 import { Download, Loader2, RotateCcw } from "lucide-react"
 import ReactMarkdown from "react-markdown"
@@ -18,22 +18,19 @@ function extractSectionId(text: string): string | null {
   return null
 }
 
-// Gjør referanser i tekst klikkbare
-function makeReferencesClickable(text: string): ReactNode {
-  // Mønster for å matche referanser
+// Unik nøkkel-teller for React keys
+let keyCounter = 0
+
+// Gjør referanser i en tekststreng klikkbare
+function processTextString(text: string): ReactNode {
   const patterns = [
-    // "avsnittene X–Y" eller "avsnittene X-Y" eller "avsnittene X, Y"
     { regex: /avsnittene\s+(\d+)[–-](\d+)/gi, type: 'range' },
-    // "avsnitt X" (enkelt)
     { regex: /avsnitt\s+(\d+)/gi, type: 'single' },
-    // "note X" eller "notene X"
     { regex: /note[ne]*\s+(\d+)/gi, type: 'note' },
-    // "$^{X}$" LaTeX-stil fotnoter
     { regex: /\$\^\{(\d+)\}\$/g, type: 'footnote' },
   ]
 
-  // Kombiner alle mønstre for å finne alle treff
-  const allMatches: { index: number; length: number; replacement: ReactNode; original: string }[] = []
+  const allMatches: { index: number; length: number; replacement: ReactNode }[] = []
 
   for (const pattern of patterns) {
     let match
@@ -62,17 +59,15 @@ function makeReferencesClickable(text: string): ReactNode {
       allMatches.push({
         index: match.index,
         length: match[0].length,
-        original: match[0],
         replacement: (
           <a
-            key={`ref-${match.index}`}
+            key={`ref-${keyCounter++}`}
             href={`#${targetId}`}
             onClick={(e) => {
               e.preventDefault()
               const element = document.getElementById(targetId)
               if (element) {
                 element.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                // Legg til en kort highlight-effekt
                 element.classList.add('highlight-ref')
                 setTimeout(() => element.classList.remove('highlight-ref'), 2000)
               }
@@ -86,18 +81,14 @@ function makeReferencesClickable(text: string): ReactNode {
     }
   }
 
-  // Hvis ingen treff, returner original tekst
   if (allMatches.length === 0) return text
 
-  // Sorter treff etter posisjon
   allMatches.sort((a, b) => a.index - b.index)
 
-  // Bygg opp resultatet med lenker
   const result: ReactNode[] = []
   let lastIndex = 0
 
   for (const match of allMatches) {
-    // Legg til tekst før treffet
     if (match.index > lastIndex) {
       result.push(text.slice(lastIndex, match.index))
     }
@@ -105,12 +96,58 @@ function makeReferencesClickable(text: string): ReactNode {
     lastIndex = match.index + match.length
   }
 
-  // Legg til resten av teksten
   if (lastIndex < text.length) {
     result.push(text.slice(lastIndex))
   }
 
   return <>{result}</>
+}
+
+// Rekursivt prosesser React children og gjør referanser klikkbare
+function processChildren(children: ReactNode): ReactNode {
+  return Children.map(children, (child) => {
+    // Hvis det er en tekststreng, prosesser den
+    if (typeof child === 'string') {
+      return processTextString(child)
+    }
+
+    // Hvis det er et tall, returner som det er
+    if (typeof child === 'number') {
+      return child
+    }
+
+    // Hvis det er et React-element, prosesser children rekursivt
+    if (isValidElement(child)) {
+      const element = child as ReactElement<{ children?: ReactNode }>
+      if (element.props.children) {
+        return cloneElement(element, {
+          ...element.props,
+          children: processChildren(element.props.children)
+        })
+      }
+      return child
+    }
+
+    return child
+  })
+}
+
+// Hent ren tekst fra children for å sjekke om det er all-caps
+function getTextContent(children: ReactNode): string {
+  let text = ''
+  Children.forEach(children, (child) => {
+    if (typeof child === 'string') {
+      text += child
+    } else if (typeof child === 'number') {
+      text += String(child)
+    } else if (isValidElement(child)) {
+      const element = child as ReactElement<{ children?: ReactNode }>
+      if (element.props.children) {
+        text += getTextContent(element.props.children)
+      }
+    }
+  })
+  return text
 }
 
 export function Translator() {
@@ -374,11 +411,11 @@ export function Translator() {
                   },
                   h3: ({ children }) => <h3 className="text-lg font-bold mt-4 mb-0">{children}</h3>,
                   p: ({ children }) => {
-                    const content = String(children);
+                    const content = getTextContent(children);
                     if (content.length > 3 && content === content.toUpperCase() && !content.includes('\n')) {
                       return <h3 className="text-lg font-bold mt-4 mb-0">{children}</h3>
                     }
-                    return <p className="mb-4 leading-relaxed">{makeReferencesClickable(content)}</p>
+                    return <p className="mb-4 leading-relaxed">{processChildren(children)}</p>
                   },
                 }}
               >
@@ -402,11 +439,11 @@ export function Translator() {
                     },
                     h3: ({ children }) => <h3 className="text-lg font-bold mt-4 mb-0">{children}</h3>,
                     p: ({ children }) => {
-                      const content = String(children);
+                      const content = getTextContent(children);
                       if (content.length > 3 && content === content.toUpperCase() && !content.includes('\n')) {
                         return <h3 className="text-lg font-bold mt-4 mb-0">{children}</h3>
                       }
-                      return <p className="mb-4 leading-relaxed">{makeReferencesClickable(content)}</p>
+                      return <p className="mb-4 leading-relaxed">{processChildren(children)}</p>
                     },
                   }}
                 >
@@ -433,11 +470,11 @@ export function Translator() {
                   },
                   h3: ({ children }) => <h3 className="text-lg font-bold mt-4 mb-0">{children}</h3>,
                   p: ({ children }) => {
-                    const content = String(children);
+                    const content = getTextContent(children);
                     if (content.length > 3 && content === content.toUpperCase() && !content.includes('\n')) {
                       return <h3 className="text-lg font-bold mt-4 mb-0 text-primary">{children}</h3>
                     }
-                    return <p className="mb-4 leading-relaxed">{makeReferencesClickable(content)}</p>
+                    return <p className="mb-4 leading-relaxed">{processChildren(children)}</p>
                   },
                 }}
               >
