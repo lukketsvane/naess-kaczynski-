@@ -1,5 +1,5 @@
 import type React from "react"
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
 import { Geist, Geist_Mono, Libre_Baskerville } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
@@ -12,9 +12,23 @@ const _libreBaskerville = Libre_Baskerville({
   style: ["normal", "italic"],
 })
 
+export const viewport: Viewport = {
+  themeColor: "white",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+}
+
 export const metadata: Metadata = {
   title: "Det industrielle samfunnet og dets framtid",
   description: "Oversatt av Arne Næss, 1995",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Næss",
+  },
 }
 
 export default function RootLayout({

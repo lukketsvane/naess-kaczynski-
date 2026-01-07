@@ -129,7 +129,7 @@ export async function POST(request: Request) {
 VIKTIGE TEKNISKE INSTRUKSJONER:
 1. Hvis en overskrift er skrevet med KUN STORE BOKSTAVER (f.eks. "INNLEDNING"), behold den slik, men sett '## ' foran den slik at den blir en Markdown-overskrift.
 2. Merk kvart nummerert punkt med overskrift som '## §1', '## §2' osv.
-3. Punkt som går over fleire sider skal merkast med '*(fortsetjing)*' etter nummeret (f.eks. '## §16 *(fortsetjing)*').
+3. Punkt som går over fleire sider skal merkast med '' etter nummeret (f.eks. '## §16 ').
 4. Ikke legg til mer enn ett linjeskift mellom avsnitt. Unngå store mellomrom.
 5. VIKTIG: IKKE skriv innledende tekst som "Her er oversettelsen" eller "I Arne Næss sin stil". Start rett på selve oversettelsen. Kun oversett teksten.`;
     } else {
