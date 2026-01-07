@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3:*)",
+      "Bash(cat:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(npm run build:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfeat: legg til klikkbare interne referanser\n\nGjor referanser til avsnitt, avsnittomrader og noter klikkbare\nmed smooth scroll og highlight-effekt. Stotter:\n- avsnitt X \\(f.eks. avsnitt 132\\)\n- avsnittene X-Y \\(f.eks. avsnittene 42-44\\)  \n- note X \\(f.eks. note 32\\)\n- LaTeX-fotnoter \\($^{X}$\\)\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git push:*)",
+      "Bash(git commit:*)",
+      "Bash(grep:*)",
+      "Bash(npm install rehype-raw)",
+      "Bash(git reset:*)"
+    ]
+  }
+}

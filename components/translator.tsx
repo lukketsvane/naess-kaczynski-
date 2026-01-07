@@ -1,7 +1,6 @@
 "use client"
 
-import { useState, useEffect, ReactNode, Children, isValidElement, cloneElement, ReactElement } from "react"
-import { Loader2 } from "lucide-react"
+import { useEffect, ReactNode, Children, isValidElement, cloneElement, ReactElement } from "react"
 import ReactMarkdown from "react-markdown"
 import rehypeRaw from "rehype-raw"
 
@@ -145,41 +144,23 @@ function getTextContent(children: ReactNode): string {
   return text
 }
 
-export function Translator() {
-  const [status, setStatus] = useState<"loading" | "done">("loading")
-  const [translatedText, setTranslatedText] = useState("")
+interface TranslatorProps {
+  initialText: string
+}
 
-  useEffect(() => {
-    const loadText = async () => {
-      try {
-        const response = await fetch("/api/translate")
-        const data = await response.json()
-
-        if (data.cached && data.text) {
-          setTranslatedText(data.text)
-          setStatus("done")
-        }
-      } catch {
-        // Teksten er ferdig, så dette burde ikke skje
-      }
-    }
-    loadText()
-  }, [])
-
+export function Translator({ initialText }: TranslatorProps) {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // CMD/CTRL + P for PDF download
       if ((e.metaKey || e.ctrlKey) && e.key === "p") {
         e.preventDefault()
-        if (translatedText) {
-          downloadPDF()
-        }
+        downloadPDF()
       }
     }
 
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [translatedText])
+  }, [])
 
   const downloadPDF = async () => {
     const { jsPDF } = await import("jspdf")
@@ -210,7 +191,7 @@ export function Translator() {
     const pageHeight = doc.internal.pageSize.height
     const lineHeight = 6
 
-    const lines = translatedText.split('\n')
+    const lines = initialText.split('\n')
 
     lines.forEach((line) => {
       if (y > pageHeight - margin) {
@@ -277,10 +258,13 @@ export function Translator() {
     // Fjern ekstra linjeskift
     let processed = text.replace(/\n{3,}/g, '\n\n')
 
-    // Kombiner "## §X" med neste paragraf (1 eller 2 linjeskift), gjør § bold og større
+    // Kombiner "## §X" eller "## §X (Avsnitt Y)" med neste paragraf, gjør § bold og større
     processed = processed.replace(
-      /## §(\d+)\s*\n+([^\n#])/g,
-      (_, num, firstChar) => `<span id="avsnitt-${num}" class="font-bold text-lg">§${num}</span> ${firstChar}`
+      /## §(\d+)(\s*\(Avsnitt \d+\))?\s*\n+([^\n#])/g,
+      (_, num, parenPart, firstChar) => {
+        const suffix = parenPart ? ` ${parenPart.trim()}` : ''
+        return `<span id="avsnitt-${num}" class="font-bold text-lg">§${num}${suffix}</span> ${firstChar}`
+      }
     )
 
     return processed
@@ -303,23 +287,13 @@ export function Translator() {
 
       <hr className="border-foreground mb-10" />
 
-      <div className="min-h-[200px]">
-        {status === "loading" && (
-          <div className="flex items-center justify-center gap-2 text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" />
-          </div>
-        )}
-
-        {status === "done" && (
-          <div className="font-serif text-base leading-relaxed">
-            <ReactMarkdown
-              components={markdownComponents}
-              rehypePlugins={[rehypeRaw]}
-            >
-              {processText(translatedText)}
-            </ReactMarkdown>
-          </div>
-        )}
+      <div className="font-serif text-base leading-relaxed">
+        <ReactMarkdown
+          components={markdownComponents}
+          rehypePlugins={[rehypeRaw]}
+        >
+          {processText(initialText)}
+        </ReactMarkdown>
       </div>
 
       <div className="mt-16 text-center text-xs text-muted-foreground/40 font-serif">
