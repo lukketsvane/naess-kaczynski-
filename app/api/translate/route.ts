@@ -16,6 +16,9 @@ interface TranslationProgress {
   lastCompletedPage: string | null;
   translations: Record<string, string>;
   isComplete: boolean;
+  paragraphIndex?: Record<string, string>;
+  sections?: Record<string, string>;
+  notes?: string;
 }
 
 function getSortedPages(poemsDict: Record<string, string>) {
@@ -89,7 +92,16 @@ export async function POST(request: Request) {
   
   // If not resuming, reset progress
   if (!resume) {
-      progress = { lastCompletedPage: null, translations: {}, isComplete: false };
+      // Preserve metadata if present
+      const { paragraphIndex, sections, notes } = progress;
+      progress = { 
+          lastCompletedPage: null, 
+          translations: {}, 
+          isComplete: false,
+          paragraphIndex,
+          sections,
+          notes
+      };
       saveProgress(progress);
   }
 
@@ -116,8 +128,10 @@ export async function POST(request: Request) {
 
 VIKTIGE TEKNISKE INSTRUKSJONER:
 1. Hvis en overskrift er skrevet med KUN STORE BOKSTAVER (f.eks. "INNLEDNING"), behold den slik, men sett '## ' foran den slik at den blir en Markdown-overskrift.
-2. Ikke legg til mer enn ett linjeskift mellom avsnitt. Unngå store mellomrom.
-3. VIKTIG: IKKE skriv innledende tekst som "Her er oversettelsen" eller "I Arne Næss sin stil". Start rett på selve oversettelsen. Kun oversett teksten.`;
+2. Merk kvart nummerert punkt med overskrift som '## §1', '## §2' osv.
+3. Punkt som går over fleire sider skal merkast med '*(fortsetjing)*' etter nummeret (f.eks. '## §16 *(fortsetjing)*').
+4. Ikke legg til mer enn ett linjeskift mellom avsnitt. Unngå store mellomrom.
+5. VIKTIG: IKKE skriv innledende tekst som "Her er oversettelsen" eller "I Arne Næss sin stil". Start rett på selve oversettelsen. Kun oversett teksten.`;
     } else {
         console.warn("System instruction file not found:", INSTRUCTION_PATH);
         systemInstruction = "Du er en oversetter. Oversett til norsk i stilen til Arne Næss."; // Fallback
