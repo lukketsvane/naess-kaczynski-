@@ -146,7 +146,7 @@ export function Translator() {
 
     doc.setFontSize(14)
     doc.setFont("helvetica", "italic")
-    const subtitle = "Oversatt av Arne Næss"
+    const subtitle = "Omdiktet av Arne Næss"
     const subtitleWidth = doc.getTextWidth(subtitle)
     doc.text(subtitle, (210 - subtitleWidth) / 2, 42)
 
@@ -184,14 +184,14 @@ export function Translator() {
         Det industrielle samfunnet og dets framtid
       </h1>
 
-      <p className="font-serif text-lg text-center text-muted-foreground italic mb-1">Oversatt av Arne Næss</p>
+      <p className="font-serif text-lg text-center text-muted-foreground italic mb-1">Omdiktet av Arne Næss</p>
 
       <p className="font-serif text-lg text-center text-muted-foreground mb-8">1995</p>
 
       {/* Intro text */}
       <p className="font-serif text-base text-foreground leading-relaxed mb-8">
         Dette essayet ble først publisert i <em>The New York Times</em> og <em>The Washington Post</em> den 19.
-        september 1995. Det ble utgitt under pseudonymet FC, for <em>Freedom Club</em>. Versjonen du leser her er skrevet ved bruk av en språkmodell, med Arne Næss sin stil som mål. Trykk på enter for å starte
+        september 1995. Det ble utgitt under pseudonymet FC, for <em>Freedom Club</em>. 
       </p>
 
       {/* Divider */}
