@@ -23,7 +23,7 @@ export function Translator() {
             setStatus("done")
           } else {
             setStatus("error")
-            setError("Oversettelsen ble avbrutt. Trykk enter for å fortsette.")
+            setError("Trykk enter for å fortsette.")
           }
         } else {
           setStatus("idle")
@@ -158,8 +158,21 @@ export function Translator() {
 
     doc.setFontSize(11)
     doc.setFont("helvetica", "normal")
+    
     const splitText = doc.splitTextToSize(translatedText, 170)
-    doc.text(splitText, 20, 85)
+    let y = 85
+    const pageHeight = doc.internal.pageSize.height
+    const marginBottom = 20
+    const lineHeight = 6
+
+    splitText.forEach((line: string) => {
+      if (y + lineHeight > pageHeight - marginBottom) {
+        doc.addPage()
+        y = 20 
+      }
+      doc.text(line, 20, y)
+      y += lineHeight
+    })
 
     doc.save("det-industrielle-samfunnet.pdf")
   }
