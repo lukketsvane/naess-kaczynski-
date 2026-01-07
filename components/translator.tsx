@@ -194,7 +194,6 @@ export function Translator() {
 
         {status === "idle" && (
           <p className="font-serif text-sm text-foreground/60 italic">
-            [trykk enter for å starte oversettelse]
           </p>
         )}
 
@@ -248,7 +247,6 @@ export function Translator() {
               </div>
             )}
             <p className="font-serif text-sm text-amber-600 italic">
-              [trykk enter for å fortsette oversettelse]
             </p>
             {error && <p className="text-sm text-muted-foreground text-center">{error}</p>}
           </div>
