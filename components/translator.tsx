@@ -287,6 +287,22 @@ export function Translator() {
           </div>
         )}
       </div>
+
+      <div className="mt-16 text-center text-xs text-muted-foreground/40 font-serif">
+        laga av{" "}
+        <a
+          href="https://github.com/lukketsvane/naess-kaczynski-"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="hover:underline"
+        >
+          @lukketsvane
+        </a>{" "}
+        med &lt;3.{" "}
+        <button onClick={downloadPDF} className="hover:underline">
+          last ned pdf her
+        </button>
+      </div>
     </div>
   )
 }
