@@ -202,23 +202,23 @@ export function Translator() {
             <div className="flex items-center gap-2 text-muted-foreground mb-4">
               <span className="text-sm"></span>
             </div>
-            <div className="font-serif text-base leading-relaxed whitespace-pre-wrap">
+            <div className="font-serif text-base leading-relaxed">
               <ReactMarkdown
                 components={{
-                  h1: ({ children }) => <h1 className="text-2xl font-bold mt-6 mb-2">{children}</h1>,
-                  h2: ({ children }) => <h2 className="text-xl font-bold mt-5 mb-2">{children}</h2>,
-                  h3: ({ children }) => <h3 className="text-lg font-bold mt-4 mb-2">{children}</h3>,
+                  h1: ({ children }) => <h1 className="text-2xl font-bold mt-8 mb-4">{children}</h1>,
+                  h2: ({ children }) => <h2 className="text-xl font-bold mt-6 mb-2">{children}</h2>,
+                  h3: ({ children }) => <h3 className="text-lg font-bold mt-4 mb-0">{children}</h3>,
                   p: ({ children }) => {
                     const content = String(children);
                     // Check if it's an all-caps title that wasn't caught as a header
                     if (content.length > 3 && content === content.toUpperCase() && !content.includes('\n')) {
-                      return <h3 className="text-lg font-bold mt-4 mb-2">{children}</h3>
+                      return <h3 className="text-lg font-bold mt-4 mb-0">{children}</h3>
                     }
-                    return <p className="mb-2 leading-relaxed">{children}</p>
+                    return <p className="mb-4 leading-relaxed">{children}</p>
                   },
                 }}
               >
-                {translatedText.replace(/\n{3,}/g, '\n')}
+                {translatedText.replace(/\n{3,}/g, '\n\n')}
               </ReactMarkdown>
             </div>
           </div>
@@ -227,22 +227,22 @@ export function Translator() {
         {status === "error" && (
           <div className="space-y-4">
             {translatedText && (
-              <div className="font-serif text-base leading-relaxed whitespace-pre-wrap">
+              <div className="font-serif text-base leading-relaxed">
                 <ReactMarkdown
                   components={{
-                    h1: ({ children }) => <h1 className="text-2xl font-bold mt-6 mb-2">{children}</h1>,
-                    h2: ({ children }) => <h2 className="text-xl font-bold mt-5 mb-2">{children}</h2>,
-                    h3: ({ children }) => <h3 className="text-lg font-bold mt-4 mb-2">{children}</h3>,
+                    h1: ({ children }) => <h1 className="text-2xl font-bold mt-8 mb-4">{children}</h1>,
+                    h2: ({ children }) => <h2 className="text-xl font-bold mt-6 mb-2">{children}</h2>,
+                    h3: ({ children }) => <h3 className="text-lg font-bold mt-4 mb-0">{children}</h3>,
                     p: ({ children }) => {
                       const content = String(children);
                        if (content.length > 3 && content === content.toUpperCase() && !content.includes('\n')) {
-                        return <h3 className="text-lg font-bold mt-4 mb-2">{children}</h3>
+                        return <h3 className="text-lg font-bold mt-4 mb-0">{children}</h3>
                       }
-                      return <p className="mb-2 leading-relaxed">{children}</p>
+                      return <p className="mb-4 leading-relaxed">{children}</p>
                     },
                   }}
                 >
-                  {translatedText.replace(/\n{3,}/g, '\n')}
+                  {translatedText.replace(/\n{3,}/g, '\n\n')}
                 </ReactMarkdown>
               </div>
             )}
@@ -254,22 +254,22 @@ export function Translator() {
 
         {status === "done" && (
           <div className="space-y-6">
-            <div className="font-serif text-base leading-relaxed whitespace-pre-wrap">
+            <div className="font-serif text-base leading-relaxed">
               <ReactMarkdown
                 components={{
-                  h1: ({ children }) => <h1 className="text-2xl font-bold mt-6 mb-2">{children}</h1>,
-                  h2: ({ children }) => <h2 className="text-xl font-bold mt-5 mb-2">{children}</h2>,
-                  h3: ({ children }) => <h3 className="text-lg font-bold mt-4 mb-2">{children}</h3>,
+                  h1: ({ children }) => <h1 className="text-2xl font-bold mt-8 mb-4">{children}</h1>,
+                  h2: ({ children }) => <h2 className="text-xl font-bold mt-6 mb-2">{children}</h2>,
+                  h3: ({ children }) => <h3 className="text-lg font-bold mt-4 mb-0">{children}</h3>,
                   p: ({ children }) => {
                       const content = String(children);
                        if (content.length > 3 && content === content.toUpperCase() && !content.includes('\n')) {
-                        return <h3 className="text-lg font-bold mt-4 mb-2 text-primary">{children}</h3>
+                        return <h3 className="text-lg font-bold mt-4 mb-0 text-primary">{children}</h3>
                       }
-                      return <p className="mb-2 leading-relaxed">{children}</p>
+                      return <p className="mb-4 leading-relaxed">{children}</p>
                   },
                 }}
               >
-                {translatedText.replace(/\n{3,}/g, '\n')}
+                {translatedText.replace(/\n{3,}/g, '\n\n')}
               </ReactMarkdown>
             </div>
 
