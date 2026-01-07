@@ -150,21 +150,12 @@ interface TranslatorProps {
 
 export function Translator({ initialText }: TranslatorProps) {
   const [currentSection, setCurrentSection] = useState(1)
-  const [isDragging, setIsDragging] = useState(false)
+  const [isInteracting, setIsInteracting] = useState(false)
   const scrubberRef = useRef<HTMLDivElement>(null)
 
   const maxSection = 232
 
-  // Naviger til avsnitt - direkte scroll
-  const scrollToSection = (sectionNum: number) => {
-    const element = document.getElementById(`avsnitt-${sectionNum}`)
-    if (element) {
-      const y = element.getBoundingClientRect().top + window.scrollY - 20
-      window.scrollTo({ top: y, behavior: 'auto' })
-    }
-  }
-
-  // Beregn seksjonsnummer fra Y-posisjon
+  // Beregn seksjonsnummer fra Y-posisjon på scrubber
   const getSectionFromY = (clientY: number): number => {
     if (!scrubberRef.current) return 1
     const rect = scrubberRef.current.getBoundingClientRect()
@@ -173,83 +164,77 @@ export function Translator({ initialText }: TranslatorProps) {
     return Math.max(1, Math.min(maxSection, Math.round(1 + clamped * (maxSection - 1))))
   }
 
-  // Touch start - start dragging og naviger
-  const onTouchStart = (e: React.TouchEvent) => {
-    e.preventDefault()
-    setIsDragging(true)
-    const section = getSectionFromY(e.touches[0].clientY)
-    setCurrentSection(section)
-    scrollToSection(section)
+  // Naviger til seksjon
+  const goToSection = (sectionNum: number) => {
+    setCurrentSection(sectionNum)
+    const element = document.getElementById(`avsnitt-${sectionNum}`)
+    if (element) {
+      element.scrollIntoView({ block: 'start' })
+    }
   }
 
-  // Touch move - oppdater seksjon
-  const onTouchMove = (e: React.TouchEvent) => {
-    if (!isDragging) return
-    e.preventDefault()
-    const section = getSectionFromY(e.touches[0].clientY)
-    setCurrentSection(section)
-    scrollToSection(section)
+  // Håndter interaksjon (click, touch, drag)
+  const handleInteraction = (clientY: number) => {
+    const section = getSectionFromY(clientY)
+    goToSection(section)
   }
 
-  // Touch end
-  const onTouchEnd = () => {
-    setIsDragging(false)
-  }
-
-  // Mouse handlers
+  // Mouse click
   const onMouseDown = (e: React.MouseEvent) => {
     e.preventDefault()
-    setIsDragging(true)
-    const section = getSectionFromY(e.clientY)
-    setCurrentSection(section)
-    scrollToSection(section)
+    setIsInteracting(true)
+    handleInteraction(e.clientY)
   }
 
-  // Global mouse move/up for dragging
+  // Touch
+  const onTouchStart = (e: React.TouchEvent) => {
+    setIsInteracting(true)
+    handleInteraction(e.touches[0].clientY)
+  }
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (isInteracting) {
+      handleInteraction(e.touches[0].clientY)
+    }
+  }
+
+  const onTouchEnd = () => setIsInteracting(false)
+
+  // Global mouse events for dragging
   useEffect(() => {
-    if (!isDragging) return
+    if (!isInteracting) return
 
-    const onMouseMove = (e: MouseEvent) => {
-      const section = getSectionFromY(e.clientY)
-      setCurrentSection(section)
-      scrollToSection(section)
-    }
+    const onMove = (e: MouseEvent) => handleInteraction(e.clientY)
+    const onUp = () => setIsInteracting(false)
 
-    const onMouseUp = () => {
-      setIsDragging(false)
-    }
-
-    window.addEventListener('mousemove', onMouseMove)
-    window.addEventListener('mouseup', onMouseUp)
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
     return () => {
-      window.removeEventListener('mousemove', onMouseMove)
-      window.removeEventListener('mouseup', onMouseUp)
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
     }
-  }, [isDragging])
+  }, [isInteracting])
 
-  // Oppdater currentSection basert på scroll posisjon
+  // Sync currentSection med scroll (kun når ikke interacting)
   useEffect(() => {
+    let ticking = false
     const handleScroll = () => {
-      if (isDragging) return
-
-      // Finn alle synlige avsnitt-elementer
-      for (let i = maxSection; i >= 1; i--) {
-        const el = document.getElementById(`avsnitt-${i}`)
-        if (el) {
-          const rect = el.getBoundingClientRect()
-          if (rect.top <= 100) {
+      if (isInteracting || ticking) return
+      ticking = true
+      requestAnimationFrame(() => {
+        for (let i = maxSection; i >= 1; i--) {
+          const el = document.getElementById(`avsnitt-${i}`)
+          if (el && el.getBoundingClientRect().top <= 100) {
             setCurrentSection(i)
-            return
+            break
           }
         }
-      }
-      setCurrentSection(1)
+        ticking = false
+      })
     }
-
     window.addEventListener('scroll', handleScroll, { passive: true })
-    handleScroll() // Initial check
     return () => window.removeEventListener('scroll', handleScroll)
-  }, [isDragging])
+  }, [isInteracting])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -395,8 +380,8 @@ export function Translator({ initialText }: TranslatorProps) {
         </div>
       </div>
 
-      {/* Section number popup when dragging */}
-      {isDragging && (
+      {/* Section number popup when interacting */}
+      {isInteracting && (
         <div className="fixed right-14 top-1/2 -translate-y-1/2 bg-foreground text-background px-4 py-2 rounded-lg text-3xl font-bold shadow-xl z-50 pointer-events-none">
           §{currentSection}
         </div>
