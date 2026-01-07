@@ -148,132 +148,108 @@ interface TranslatorProps {
   initialText: string
 }
 
-// Generer liste over alle avsnittsnumre fra teksten
-function extractSectionNumbers(text: string): number[] {
-  const matches = text.matchAll(/## §(\d+)/g)
-  const numbers = Array.from(matches, m => parseInt(m[1]))
-  return [...new Set(numbers)].sort((a, b) => a - b)
-}
-
 export function Translator({ initialText }: TranslatorProps) {
   const [currentSection, setCurrentSection] = useState(1)
   const [isDragging, setIsDragging] = useState(false)
-  const [showScrubber, setShowScrubber] = useState(false)
   const scrubberRef = useRef<HTMLDivElement>(null)
-  const scrubberTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
-  const sectionNumbers = extractSectionNumbers(initialText)
-  const maxSection = sectionNumbers.length > 0 ? Math.max(...sectionNumbers) : 232
+  const maxSection = 232
 
-  // Naviger til avsnitt
-  const navigateToSection = useCallback((sectionNum: number) => {
+  // Naviger til avsnitt - direkte scroll
+  const scrollToSection = (sectionNum: number) => {
     const element = document.getElementById(`avsnitt-${sectionNum}`)
     if (element) {
-      element.scrollIntoView({ behavior: 'auto', block: 'start' })
-      element.classList.add('highlight-ref')
-      setTimeout(() => element.classList.remove('highlight-ref'), 1000)
+      const y = element.getBoundingClientRect().top + window.scrollY - 20
+      window.scrollTo({ top: y, behavior: 'auto' })
     }
-  }, [])
+  }
 
-  // Håndter touch/mouse på scrubber
-  const handleScrubberInteraction = useCallback((clientY: number) => {
-    if (!scrubberRef.current) return
-
+  // Beregn seksjonsnummer fra Y-posisjon
+  const getSectionFromY = (clientY: number): number => {
+    if (!scrubberRef.current) return 1
     const rect = scrubberRef.current.getBoundingClientRect()
-    const relativeY = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height))
-    const sectionNum = Math.max(1, Math.min(maxSection, Math.round(relativeY * maxSection)))
+    const relativeY = (clientY - rect.top) / rect.height
+    const clamped = Math.max(0, Math.min(1, relativeY))
+    return Math.max(1, Math.min(maxSection, Math.round(1 + clamped * (maxSection - 1))))
+  }
 
-    setCurrentSection(sectionNum)
-    navigateToSection(sectionNum)
-  }, [maxSection, navigateToSection])
-
-  // Touch handlers
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+  // Touch start - start dragging og naviger
+  const onTouchStart = (e: React.TouchEvent) => {
+    e.preventDefault()
     setIsDragging(true)
-    handleScrubberInteraction(e.touches[0].clientY)
-  }, [handleScrubberInteraction])
+    const section = getSectionFromY(e.touches[0].clientY)
+    setCurrentSection(section)
+    scrollToSection(section)
+  }
 
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (isDragging) {
-      e.preventDefault()
-      handleScrubberInteraction(e.touches[0].clientY)
-    }
-  }, [isDragging, handleScrubberInteraction])
+  // Touch move - oppdater seksjon
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging) return
+    e.preventDefault()
+    const section = getSectionFromY(e.touches[0].clientY)
+    setCurrentSection(section)
+    scrollToSection(section)
+  }
 
-  const handleTouchEnd = useCallback(() => {
+  // Touch end
+  const onTouchEnd = () => {
     setIsDragging(false)
-  }, [])
+  }
 
   // Mouse handlers
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+  const onMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault()
     setIsDragging(true)
-    handleScrubberInteraction(e.clientY)
-  }, [handleScrubberInteraction])
+    const section = getSectionFromY(e.clientY)
+    setCurrentSection(section)
+    scrollToSection(section)
+  }
 
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (isDragging) {
-      handleScrubberInteraction(e.clientY)
-    }
-  }, [isDragging, handleScrubberInteraction])
-
-  const handleMouseUp = useCallback(() => {
-    setIsDragging(false)
-  }, [])
-
-  // Vis scrubber ved touch på høyre kant
+  // Global mouse move/up for dragging
   useEffect(() => {
-    const handleTouch = (e: TouchEvent) => {
-      const touch = e.touches[0]
-      const screenWidth = window.innerWidth
-      // Vis scrubber hvis touch er på høyre 15% av skjermen
-      if (touch.clientX > screenWidth * 0.85) {
-        setShowScrubber(true)
-        if (scrubberTimeoutRef.current) {
-          clearTimeout(scrubberTimeoutRef.current)
-        }
-      }
+    if (!isDragging) return
+
+    const onMouseMove = (e: MouseEvent) => {
+      const section = getSectionFromY(e.clientY)
+      setCurrentSection(section)
+      scrollToSection(section)
     }
 
-    const handleTouchEnd = () => {
-      scrubberTimeoutRef.current = setTimeout(() => {
-        if (!isDragging) {
-          setShowScrubber(false)
-        }
-      }, 2000)
+    const onMouseUp = () => {
+      setIsDragging(false)
     }
 
-    window.addEventListener('touchstart', handleTouch)
-    window.addEventListener('touchend', handleTouchEnd)
-
+    window.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('mouseup', onMouseUp)
     return () => {
-      window.removeEventListener('touchstart', handleTouch)
-      window.removeEventListener('touchend', handleTouchEnd)
-      if (scrubberTimeoutRef.current) {
-        clearTimeout(scrubberTimeoutRef.current)
-      }
+      window.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('mouseup', onMouseUp)
     }
   }, [isDragging])
 
-  // Oppdater currentSection basert på scroll
+  // Oppdater currentSection basert på scroll posisjon
   useEffect(() => {
     const handleScroll = () => {
       if (isDragging) return
 
-      const sections = sectionNumbers.map(num => {
-        const el = document.getElementById(`avsnitt-${num}`)
-        if (!el) return { num, top: Infinity }
-        return { num, top: el.getBoundingClientRect().top }
-      })
-
-      const current = sections.find(s => s.top > 50) || sections[sections.length - 1]
-      if (current && current.num !== currentSection) {
-        setCurrentSection(current.num)
+      // Finn alle synlige avsnitt-elementer
+      for (let i = maxSection; i >= 1; i--) {
+        const el = document.getElementById(`avsnitt-${i}`)
+        if (el) {
+          const rect = el.getBoundingClientRect()
+          if (rect.top <= 100) {
+            setCurrentSection(i)
+            return
+          }
+        }
       }
+      setCurrentSection(1)
     }
 
     window.addEventListener('scroll', handleScroll, { passive: true })
+    handleScroll() // Initial check
     return () => window.removeEventListener('scroll', handleScroll)
-  }, [sectionNumbers, currentSection, isDragging])
+  }, [isDragging])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -401,43 +377,27 @@ export function Translator({ initialText }: TranslatorProps) {
       {/* Section Scrubber - iOS-style navigation */}
       <div
         ref={scrubberRef}
-        className={`fixed right-0 top-1/2 -translate-y-1/2 h-[70vh] w-8 z-50 flex flex-col items-center justify-between py-4 transition-opacity duration-300 ${
-          showScrubber || isDragging ? 'opacity-100' : 'opacity-0 pointer-events-none md:opacity-100 md:pointer-events-auto md:hover:opacity-100'
-        }`}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
+        className="fixed right-0 top-1/2 -translate-y-1/2 h-[70vh] w-10 z-50 cursor-pointer touch-none"
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        onMouseDown={onMouseDown}
       >
-        {/* Track */}
-        <div className="absolute inset-x-0 top-4 bottom-4 mx-auto w-0.5 bg-muted-foreground/20 rounded-full" />
+        {/* Track background */}
+        <div className="absolute right-2 top-0 bottom-0 w-1 bg-muted-foreground/20 rounded-full" />
 
         {/* Current position indicator */}
         <div
-          className="absolute right-1 w-6 h-6 bg-primary rounded-full flex items-center justify-center text-[10px] font-bold text-primary-foreground shadow-lg transition-all duration-75"
-          style={{ top: `calc(${((currentSection - 1) / (maxSection - 1)) * 100}% + 1rem - 0.75rem)` }}
+          className="absolute right-0 w-8 h-8 bg-primary rounded-full flex items-center justify-center text-[10px] font-bold text-primary-foreground shadow-lg pointer-events-none"
+          style={{ top: `calc(${((currentSection - 1) / (maxSection - 1)) * 100}% - 1rem)` }}
         >
           {currentSection}
         </div>
-
-        {/* Section markers - show every 50 */}
-        {[1, 50, 100, 150, 200, maxSection].filter((n, i, arr) => n <= maxSection && arr.indexOf(n) === i).map((num) => (
-          <div
-            key={num}
-            className="absolute right-6 text-[9px] text-muted-foreground font-mono"
-            style={{ top: `calc(${((num - 1) / (maxSection - 1)) * 100}% + 1rem - 0.5rem)` }}
-          >
-            {num}
-          </div>
-        ))}
       </div>
 
       {/* Section number popup when dragging */}
       {isDragging && (
-        <div className="fixed right-12 top-1/2 -translate-y-1/2 bg-foreground text-background px-4 py-2 rounded-lg text-2xl font-bold shadow-xl z-50">
+        <div className="fixed right-14 top-1/2 -translate-y-1/2 bg-foreground text-background px-4 py-2 rounded-lg text-3xl font-bold shadow-xl z-50 pointer-events-none">
           §{currentSection}
         </div>
       )}
