@@ -120,8 +120,36 @@
   }
   html {
     zoom: 75%;
+    scroll-behavior: smooth;
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+/* Highlight-effekt for navigering til avsnitt/noter */
+.highlight-ref {
+  animation: highlight-pulse 2s ease-out;
+}
+
+@keyframes highlight-pulse {
+  0% {
+    background-color: oklch(0.9 0.1 90);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.dark .highlight-ref {
+  animation: highlight-pulse-dark 2s ease-out;
+}
+
+@keyframes highlight-pulse-dark {
+  0% {
+    background-color: oklch(0.3 0.1 90);
+  }
+  100% {
+    background-color: transparent;
   }
 }

@@ -1,9 +1,117 @@
 "use client"
 
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback, useRef, ReactNode } from "react"
 import { Button } from "@/components/ui/button"
 import { Download, Loader2, RotateCcw } from "lucide-react"
 import ReactMarkdown from "react-markdown"
+
+// Ekstraherer avsnittsnummer fra overskrift (§1, §2, osv. eller note-nummer som "29", "30")
+function extractSectionId(text: string): string | null {
+  // Matcher §-nummer (f.eks. "§1", "§123")
+  const sectionMatch = text.match(/§(\d+)/)
+  if (sectionMatch) return `avsnitt-${sectionMatch[1]}`
+
+  // Matcher note-nummer (f.eks. "29 (Avsnitt 154)" → note-29)
+  const noteMatch = text.match(/^(\d+)\s*\(/)
+  if (noteMatch) return `note-${noteMatch[1]}`
+
+  return null
+}
+
+// Gjør referanser i tekst klikkbare
+function makeReferencesClickable(text: string): ReactNode {
+  // Mønster for å matche referanser
+  const patterns = [
+    // "avsnittene X–Y" eller "avsnittene X-Y" eller "avsnittene X, Y"
+    { regex: /avsnittene\s+(\d+)[–-](\d+)/gi, type: 'range' },
+    // "avsnitt X" (enkelt)
+    { regex: /avsnitt\s+(\d+)/gi, type: 'single' },
+    // "note X" eller "notene X"
+    { regex: /note[ne]*\s+(\d+)/gi, type: 'note' },
+    // "$^{X}$" LaTeX-stil fotnoter
+    { regex: /\$\^\{(\d+)\}\$/g, type: 'footnote' },
+  ]
+
+  // Kombiner alle mønstre for å finne alle treff
+  const allMatches: { index: number; length: number; replacement: ReactNode; original: string }[] = []
+
+  for (const pattern of patterns) {
+    let match
+    const regex = new RegExp(pattern.regex.source, pattern.regex.flags)
+    while ((match = regex.exec(text)) !== null) {
+      const num = match[1]
+      let targetId: string
+      let displayText = match[0]
+
+      switch (pattern.type) {
+        case 'range':
+        case 'single':
+          targetId = `avsnitt-${num}`
+          break
+        case 'note':
+          targetId = `note-${num}`
+          break
+        case 'footnote':
+          targetId = `note-${num}`
+          displayText = `[${num}]`
+          break
+        default:
+          targetId = `avsnitt-${num}`
+      }
+
+      allMatches.push({
+        index: match.index,
+        length: match[0].length,
+        original: match[0],
+        replacement: (
+          <a
+            key={`ref-${match.index}`}
+            href={`#${targetId}`}
+            onClick={(e) => {
+              e.preventDefault()
+              const element = document.getElementById(targetId)
+              if (element) {
+                element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                // Legg til en kort highlight-effekt
+                element.classList.add('highlight-ref')
+                setTimeout(() => element.classList.remove('highlight-ref'), 2000)
+              }
+            }}
+            className="text-primary hover:underline cursor-pointer"
+          >
+            {displayText}
+          </a>
+        )
+      })
+    }
+  }
+
+  // Hvis ingen treff, returner original tekst
+  if (allMatches.length === 0) return text
+
+  // Sorter treff etter posisjon
+  allMatches.sort((a, b) => a.index - b.index)
+
+  // Bygg opp resultatet med lenker
+  const result: ReactNode[] = []
+  let lastIndex = 0
+
+  for (const match of allMatches) {
+    // Legg til tekst før treffet
+    if (match.index > lastIndex) {
+      result.push(text.slice(lastIndex, match.index))
+    }
+    result.push(match.replacement)
+    lastIndex = match.index + match.length
+  }
+
+  // Legg til resten av teksten
+  if (lastIndex < text.length) {
+    result.push(text.slice(lastIndex))
+  }
+
+  return <>{result}</>
+}
 
 export function Translator() {
   const [status, setStatus] = useState<"idle" | "loading" | "translating" | "done" | "error">("loading")
@@ -259,15 +367,18 @@ export function Translator() {
               <ReactMarkdown
                 components={{
                   h1: ({ children }) => <h1 className="text-2xl font-bold mt-8 mb-4">{children}</h1>,
-                  h2: ({ children }) => <h2 className="text-xl font-bold mt-6 mb-2">{children}</h2>,
+                  h2: ({ children }) => {
+                    const text = String(children)
+                    const id = extractSectionId(text)
+                    return <h2 id={id || undefined} className="text-xl font-bold mt-6 mb-2 scroll-mt-4">{children}</h2>
+                  },
                   h3: ({ children }) => <h3 className="text-lg font-bold mt-4 mb-0">{children}</h3>,
                   p: ({ children }) => {
                     const content = String(children);
-                    // Check if it's an all-caps title that wasn't caught as a header
                     if (content.length > 3 && content === content.toUpperCase() && !content.includes('\n')) {
                       return <h3 className="text-lg font-bold mt-4 mb-0">{children}</h3>
                     }
-                    return <p className="mb-4 leading-relaxed">{children}</p>
+                    return <p className="mb-4 leading-relaxed">{makeReferencesClickable(content)}</p>
                   },
                 }}
               >
@@ -284,14 +395,18 @@ export function Translator() {
                 <ReactMarkdown
                   components={{
                     h1: ({ children }) => <h1 className="text-2xl font-bold mt-8 mb-4">{children}</h1>,
-                    h2: ({ children }) => <h2 className="text-xl font-bold mt-6 mb-2">{children}</h2>,
+                    h2: ({ children }) => {
+                      const text = String(children)
+                      const id = extractSectionId(text)
+                      return <h2 id={id || undefined} className="text-xl font-bold mt-6 mb-2 scroll-mt-4">{children}</h2>
+                    },
                     h3: ({ children }) => <h3 className="text-lg font-bold mt-4 mb-0">{children}</h3>,
                     p: ({ children }) => {
                       const content = String(children);
-                       if (content.length > 3 && content === content.toUpperCase() && !content.includes('\n')) {
+                      if (content.length > 3 && content === content.toUpperCase() && !content.includes('\n')) {
                         return <h3 className="text-lg font-bold mt-4 mb-0">{children}</h3>
                       }
-                      return <p className="mb-4 leading-relaxed">{children}</p>
+                      return <p className="mb-4 leading-relaxed">{makeReferencesClickable(content)}</p>
                     },
                   }}
                 >
@@ -311,14 +426,18 @@ export function Translator() {
               <ReactMarkdown
                 components={{
                   h1: ({ children }) => <h1 className="text-2xl font-bold mt-8 mb-4">{children}</h1>,
-                  h2: ({ children }) => <h2 className="text-xl font-bold mt-6 mb-2">{children}</h2>,
+                  h2: ({ children }) => {
+                    const text = String(children)
+                    const id = extractSectionId(text)
+                    return <h2 id={id || undefined} className="text-xl font-bold mt-6 mb-2 scroll-mt-4">{children}</h2>
+                  },
                   h3: ({ children }) => <h3 className="text-lg font-bold mt-4 mb-0">{children}</h3>,
                   p: ({ children }) => {
-                      const content = String(children);
-                       if (content.length > 3 && content === content.toUpperCase() && !content.includes('\n')) {
-                        return <h3 className="text-lg font-bold mt-4 mb-0 text-primary">{children}</h3>
-                      }
-                      return <p className="mb-4 leading-relaxed">{children}</p>
+                    const content = String(children);
+                    if (content.length > 3 && content === content.toUpperCase() && !content.includes('\n')) {
+                      return <h3 className="text-lg font-bold mt-4 mb-0 text-primary">{children}</h3>
+                    }
+                    return <p className="mb-4 leading-relaxed">{makeReferencesClickable(content)}</p>
                   },
                 }}
               >
