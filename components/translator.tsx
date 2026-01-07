@@ -157,11 +157,13 @@ export function Translator({ initialText }: TranslatorProps) {
 
   // Beregn seksjonsnummer fra Y-posisjon på scrubber
   const getSectionFromY = (clientY: number): number => {
-    if (!scrubberRef.current) return 1
+    if (!scrubberRef.current) return currentSection
     const rect = scrubberRef.current.getBoundingClientRect()
+    if (rect.height === 0) return currentSection
     const relativeY = (clientY - rect.top) / rect.height
     const clamped = Math.max(0, Math.min(1, relativeY))
-    return Math.max(1, Math.min(maxSection, Math.round(1 + clamped * (maxSection - 1))))
+    const section = Math.round(1 + clamped * (maxSection - 1))
+    return Math.max(1, Math.min(maxSection, section))
   }
 
   // Naviger til seksjon
@@ -362,19 +364,19 @@ export function Translator({ initialText }: TranslatorProps) {
       {/* Section Scrubber - iOS-style navigation */}
       <div
         ref={scrubberRef}
-        className="fixed right-0 top-1/2 -translate-y-1/2 h-[70vh] w-10 z-50 cursor-pointer touch-none"
+        className="fixed right-0 top-[15vh] h-[70vh] w-12 z-50 cursor-pointer touch-none select-none"
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
         onMouseDown={onMouseDown}
       >
         {/* Track background */}
-        <div className="absolute right-2 top-0 bottom-0 w-1 bg-muted-foreground/20 rounded-full" />
+        <div className="absolute right-3 top-0 bottom-0 w-1 bg-muted-foreground/30 rounded-full" />
 
         {/* Current position indicator */}
         <div
-          className="absolute right-0 w-8 h-8 bg-primary rounded-full flex items-center justify-center text-[10px] font-bold text-primary-foreground shadow-lg pointer-events-none"
-          style={{ top: `calc(${((currentSection - 1) / (maxSection - 1)) * 100}% - 1rem)` }}
+          className="absolute right-1 w-8 h-8 bg-primary rounded-full flex items-center justify-center text-[10px] font-bold text-primary-foreground shadow-lg pointer-events-none transition-[top] duration-75"
+          style={{ top: `${((currentSection - 1) / (maxSection - 1)) * 100}%` }}
         >
           {currentSection}
         </div>
