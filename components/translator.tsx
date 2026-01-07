@@ -138,6 +138,7 @@ export function Translator() {
     const { jsPDF } = await import("jspdf")
     const doc = new jsPDF()
 
+    // Title Page / Header
     doc.setFontSize(20)
     doc.setFont("helvetica", "bold")
     const title = "Det industrielle samfunnet og dets framtid"
@@ -156,22 +157,61 @@ export function Translator() {
     doc.setLineWidth(0.5)
     doc.line(20, 70, 190, 70)
 
+    // Content
     doc.setFontSize(11)
-    doc.setFont("helvetica", "normal")
-    
-    const splitText = doc.splitTextToSize(translatedText, 170)
     let y = 85
+    const margin = 20
+    const pageWidth = 170 // 210mm width - 20mm left - 20mm right
     const pageHeight = doc.internal.pageSize.height
-    const marginBottom = 20
     const lineHeight = 6
 
-    splitText.forEach((line: string) => {
-      if (y + lineHeight > pageHeight - marginBottom) {
+    const lines = translatedText.split('\n')
+
+    lines.forEach((line) => {
+      // Check for Page Break before processing the line (heuristic)
+      if (y > pageHeight - margin) {
         doc.addPage()
-        y = 20 
+        y = margin
       }
-      doc.text(line, 20, y)
-      y += lineHeight
+
+      const trimmedLine = line.trim()
+
+      if (trimmedLine.startsWith('##')) {
+        // Header
+        doc.setFont("helvetica", "bold")
+        // Remove '##' and trim
+        const headerText = trimmedLine.replace(/^##\s*/, '')
+        
+        // Ensure header stays with at least one line of following text if possible?
+        // Simple check:
+        if (y + lineHeight * 2 > pageHeight - margin) {
+            doc.addPage()
+            y = margin
+        }
+
+        doc.text(headerText, margin, y)
+        y += lineHeight * 1.5 // Extra space after header
+        doc.setFont("helvetica", "normal")
+      } else if (trimmedLine === '') {
+        // Empty line -> Paragraph break
+        // Only add vertical space if not at the very top of a page
+        if (y > margin) {
+           y += lineHeight
+        }
+      } else {
+        // Standard Paragraph
+        doc.setFont("helvetica", "normal")
+        const wrappedLines = doc.splitTextToSize(line, pageWidth)
+        
+        wrappedLines.forEach((wrappedLine: string) => {
+          if (y + lineHeight > pageHeight - margin) {
+            doc.addPage()
+            y = margin
+          }
+          doc.text(wrappedLine, margin, y)
+          y += lineHeight
+        })
+      }
     })
 
     doc.save("det-industrielle-samfunnet.pdf")
