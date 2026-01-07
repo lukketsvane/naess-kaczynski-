@@ -15,7 +15,7 @@ const _libreBaskerville = Libre_Baskerville({
 export const viewport: Viewport = {
   themeColor: "white",
   width: "device-width",
-  initialScale: 1,
+  initialScale: 0.8,
   maximumScale: 1,
   userScalable: false,
 }

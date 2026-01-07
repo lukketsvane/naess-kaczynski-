@@ -1,17 +1,15 @@
 "use client"
 
-import { useState, useEffect, useCallback, useRef, ReactNode, Children, isValidElement, cloneElement, ReactElement } from "react"
-import { Button } from "@/components/ui/button"
-import { Download, Loader2, RotateCcw } from "lucide-react"
+import { useState, useEffect, ReactNode, Children, isValidElement, cloneElement, ReactElement } from "react"
+import { Loader2 } from "lucide-react"
 import ReactMarkdown from "react-markdown"
+import rehypeRaw from "rehype-raw"
 
 // Ekstraherer avsnittsnummer fra overskrift (§1, §2, osv. eller note-nummer som "29", "30")
 function extractSectionId(text: string): string | null {
-  // Matcher §-nummer (f.eks. "§1", "§123")
   const sectionMatch = text.match(/§(\d+)/)
   if (sectionMatch) return `avsnitt-${sectionMatch[1]}`
 
-  // Matcher note-nummer (f.eks. "29 (Avsnitt 154)" → note-29)
   const noteMatch = text.match(/^(\d+)\s*\(/)
   if (noteMatch) return `note-${noteMatch[1]}`
 
@@ -106,17 +104,14 @@ function processTextString(text: string): ReactNode {
 // Rekursivt prosesser React children og gjør referanser klikkbare
 function processChildren(children: ReactNode): ReactNode {
   return Children.map(children, (child) => {
-    // Hvis det er en tekststreng, prosesser den
     if (typeof child === 'string') {
       return processTextString(child)
     }
 
-    // Hvis det er et tall, returner som det er
     if (typeof child === 'number') {
       return child
     }
 
-    // Hvis det er et React-element, prosesser children rekursivt
     if (isValidElement(child)) {
       const element = child as ReactElement<{ children?: ReactNode }>
       if (element.props.children) {
@@ -132,7 +127,7 @@ function processChildren(children: ReactNode): ReactNode {
   })
 }
 
-// Hent ren tekst fra children for å sjekke om det er all-caps
+// Hent ren tekst fra children
 function getTextContent(children: ReactNode): string {
   let text = ''
   Children.forEach(children, (child) => {
@@ -151,108 +146,24 @@ function getTextContent(children: ReactNode): string {
 }
 
 export function Translator() {
-  const [status, setStatus] = useState<"idle" | "loading" | "translating" | "done" | "error">("loading")
+  const [status, setStatus] = useState<"loading" | "done">("loading")
   const [translatedText, setTranslatedText] = useState("")
-  const [error, setError] = useState<string | null>(null)
-  const abortControllerRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
-    const checkCache = async () => {
+    const loadText = async () => {
       try {
         const response = await fetch("/api/translate")
         const data = await response.json()
 
         if (data.cached && data.text) {
           setTranslatedText(data.text)
-          if (data.complete) {
-            setStatus("done")
-          } else {
-            setStatus("error")
-            setError("Trykk enter for å fortsette.")
-          }
-        } else {
-          setStatus("idle")
+          setStatus("done")
         }
       } catch {
-        setStatus("idle")
+        // Teksten er ferdig, så dette burde ikke skje
       }
     }
-    checkCache()
-  }, [])
-
-  const startTranslation = useCallback(
-    async (resume = false) => {
-      if (status === "translating") return
-
-      const resumeLen = resume ? translatedText.length : 0
-      setStatus("translating")
-      setTranslatedText("")
-      setError(null)
-
-      abortControllerRef.current = new AbortController()
-
-      try {
-        const response = await fetch("/api/translate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ resumeFrom: resumeLen }),
-          signal: abortControllerRef.current.signal,
-        })
-
-        if (!response.ok) {
-          throw new Error("Translation failed")
-        }
-
-        const contentType = response.headers.get("content-type")
-        if (contentType?.includes("application/json")) {
-          const data = await response.json()
-          if (data.complete) {
-            setTranslatedText(data.text)
-            setStatus("done")
-            return
-          }
-        }
-
-        const reader = response.body?.getReader()
-        const decoder = new TextDecoder()
-
-        if (!reader) {
-          throw new Error("No response body")
-        }
-
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
-
-          const chunk = decoder.decode(value, { stream: true })
-
-          if (chunk.includes("[FEIL:")) {
-            setError("Tilkoblingen ble avbrutt. Trykk enter for å fortsette.")
-            setStatus("error")
-            // Still append the text we got
-            setTranslatedText((prev) => prev + chunk.split("[FEIL:")[0])
-            return
-          }
-
-          setTranslatedText((prev) => prev + chunk)
-        }
-
-        setStatus("done")
-      } catch (err) {
-        if (err instanceof Error && err.name === "AbortError") {
-          return
-        }
-        setError("Tilkoblingen ble avbrutt. Trykk enter for å fortsette.")
-        setStatus("error")
-      }
-    },
-    [status, translatedText.length],
-  )
-
-  const resetTranslation = useCallback(() => {
-    setTranslatedText("")
-    setStatus("idle")
-    setError(null)
+    loadText()
   }, [])
 
   useEffect(() => {
@@ -263,27 +174,17 @@ export function Translator() {
         if (translatedText) {
           downloadPDF()
         }
-        return
-      }
-
-      if (e.key === "Enter") {
-        if (status === "idle") {
-          startTranslation(false)
-        } else if (status === "error") {
-          startTranslation(true)
-        }
       }
     }
 
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [status, startTranslation, translatedText]) // Added translatedText dependency for PDF download
+  }, [translatedText])
 
   const downloadPDF = async () => {
     const { jsPDF } = await import("jspdf")
     const doc = new jsPDF()
 
-    // Title Page / Header
     doc.setFontSize(20)
     doc.setFont("helvetica", "bold")
     const title = "Det industrielle samfunnet og dets framtid"
@@ -302,18 +203,16 @@ export function Translator() {
     doc.setLineWidth(0.5)
     doc.line(20, 70, 190, 70)
 
-    // Content
     doc.setFontSize(11)
     let y = 85
     const margin = 20
-    const pageWidth = 170 // 210mm width - 20mm left - 20mm right
+    const pageWidth = 170
     const pageHeight = doc.internal.pageSize.height
     const lineHeight = 6
 
     const lines = translatedText.split('\n')
 
     lines.forEach((line) => {
-      // Check for Page Break before processing the line (heuristic)
       if (y > pageHeight - margin) {
         doc.addPage()
         y = margin
@@ -322,32 +221,25 @@ export function Translator() {
       const trimmedLine = line.trim()
 
       if (trimmedLine.startsWith('##')) {
-        // Header
         doc.setFont("helvetica", "bold")
-        // Remove '##' and trim
         const headerText = trimmedLine.replace(/^##\s*/, '')
-        
-        // Ensure header stays with at least one line of following text if possible?
-        // Simple check:
+
         if (y + lineHeight * 2 > pageHeight - margin) {
             doc.addPage()
             y = margin
         }
 
         doc.text(headerText, margin, y)
-        y += lineHeight * 1.5 // Extra space after header
+        y += lineHeight * 1.5
         doc.setFont("helvetica", "normal")
       } else if (trimmedLine === '') {
-        // Empty line -> Paragraph break
-        // Only add vertical space if not at the very top of a page
         if (y > margin) {
            y += lineHeight
         }
       } else {
-        // Standard Paragraph
         doc.setFont("helvetica", "normal")
         const wrappedLines = doc.splitTextToSize(line, pageWidth)
-        
+
         wrappedLines.forEach((wrappedLine: string) => {
           if (y + lineHeight > pageHeight - margin) {
             doc.addPage()
@@ -362,9 +254,40 @@ export function Translator() {
     doc.save("det-industrielle-samfunnet.pdf")
   }
 
+  const markdownComponents = {
+    h1: ({ children }: { children?: ReactNode }) => <h1 className="text-2xl font-bold mt-8 mb-4">{children}</h1>,
+    h2: ({ children }: { children?: ReactNode }) => {
+      const text = getTextContent(children)
+      const id = extractSectionId(text)
+      // Vanlige seksjonsoverskrifter (ikke §-avsnitt, de er nå inline i teksten)
+      return <h2 id={id || undefined} className="text-xl font-bold mt-6 mb-2 scroll-mt-4">{children}</h2>
+    },
+    h3: ({ children }: { children?: ReactNode }) => <h3 className="text-lg font-bold mt-4 mb-0">{children}</h3>,
+    p: ({ children }: { children?: ReactNode }) => {
+      const content = getTextContent(children);
+      if (content.length > 3 && content === content.toUpperCase() && !content.includes('\n')) {
+        return <h3 className="text-lg font-bold mt-4 mb-0">{children}</h3>
+      }
+      return <p className="mb-4 leading-relaxed">{processChildren(children)}</p>
+    },
+  }
+
+  // Pre-prosesser tekst for å kombinere §-linjer med påfølgende paragraf
+  const processText = (text: string) => {
+    // Fjern ekstra linjeskift
+    let processed = text.replace(/\n{3,}/g, '\n\n')
+
+    // Kombiner "## §X" med neste paragraf, gjør § bold og større
+    processed = processed.replace(
+      /## §(\d+)\s*\n\n([^\n#])/g,
+      (_, num, firstChar) => `<span id="avsnitt-${num}" class="font-bold text-lg">§${num}</span> ${firstChar}`
+    )
+
+    return processed
+  }
+
   return (
     <div className="max-w-4xl mx-auto px-4 md:px-8 py-16">
-      {/* Header */}
       <h1 className="font-serif text-3xl md:text-4xl font-bold text-center text-foreground mb-6 text-balance">
         Det industrielle samfunnet og dets framtid
       </h1>
@@ -373,16 +296,13 @@ export function Translator() {
 
       <p className="font-serif text-lg text-center text-muted-foreground mb-8">1995</p>
 
-      {/* Intro text */}
       <p className="font-serif text-base text-foreground leading-relaxed mb-8">
         Dette essayet ble først publisert i <em>The New York Times</em> og <em>The Washington Post</em> den 19.
-        september 1995. Det ble utgitt under pseudonymet FC, for <em>Freedom Club</em>. 
+        september 1995. Det ble utgitt under pseudonymet FC, for <em>Freedom Club</em>.
       </p>
 
-      {/* Divider */}
       <hr className="border-foreground mb-10" />
 
-      {/* Content area */}
       <div className="min-h-[200px]">
         {status === "loading" && (
           <div className="flex items-center justify-center gap-2 text-muted-foreground">
@@ -390,97 +310,14 @@ export function Translator() {
           </div>
         )}
 
-        {status === "idle" && (
-          <p className="font-serif text-sm text-foreground/60 italic">
-          </p>
-        )}
-
-        {status === "translating" && (
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 text-muted-foreground mb-4">
-              <span className="text-sm"></span>
-            </div>
-            <div className="font-serif text-base leading-relaxed">
-              <ReactMarkdown
-                components={{
-                  h1: ({ children }) => <h1 className="text-2xl font-bold mt-8 mb-4">{children}</h1>,
-                  h2: ({ children }) => {
-                    const text = String(children)
-                    const id = extractSectionId(text)
-                    return <h2 id={id || undefined} className="text-xl font-bold mt-6 mb-2 scroll-mt-4">{children}</h2>
-                  },
-                  h3: ({ children }) => <h3 className="text-lg font-bold mt-4 mb-0">{children}</h3>,
-                  p: ({ children }) => {
-                    const content = getTextContent(children);
-                    if (content.length > 3 && content === content.toUpperCase() && !content.includes('\n')) {
-                      return <h3 className="text-lg font-bold mt-4 mb-0">{children}</h3>
-                    }
-                    return <p className="mb-4 leading-relaxed">{processChildren(children)}</p>
-                  },
-                }}
-              >
-                {translatedText.replace(/\n{3,}/g, '\n\n')}
-              </ReactMarkdown>
-            </div>
-          </div>
-        )}
-
-        {status === "error" && (
-          <div className="space-y-4">
-            {translatedText && (
-              <div className="font-serif text-base leading-relaxed">
-                <ReactMarkdown
-                  components={{
-                    h1: ({ children }) => <h1 className="text-2xl font-bold mt-8 mb-4">{children}</h1>,
-                    h2: ({ children }) => {
-                      const text = String(children)
-                      const id = extractSectionId(text)
-                      return <h2 id={id || undefined} className="text-xl font-bold mt-6 mb-2 scroll-mt-4">{children}</h2>
-                    },
-                    h3: ({ children }) => <h3 className="text-lg font-bold mt-4 mb-0">{children}</h3>,
-                    p: ({ children }) => {
-                      const content = getTextContent(children);
-                      if (content.length > 3 && content === content.toUpperCase() && !content.includes('\n')) {
-                        return <h3 className="text-lg font-bold mt-4 mb-0">{children}</h3>
-                      }
-                      return <p className="mb-4 leading-relaxed">{processChildren(children)}</p>
-                    },
-                  }}
-                >
-                  {translatedText.replace(/\n{3,}/g, '\n\n')}
-                </ReactMarkdown>
-              </div>
-            )}
-            <p className="font-serif text-sm text-amber-600 italic">
-            </p>
-            {error && <p className="text-sm text-muted-foreground text-center">{error}</p>}
-          </div>
-        )}
-
         {status === "done" && (
-          <div className="space-y-6">
-            <div className="font-serif text-base leading-relaxed">
-              <ReactMarkdown
-                components={{
-                  h1: ({ children }) => <h1 className="text-2xl font-bold mt-8 mb-4">{children}</h1>,
-                  h2: ({ children }) => {
-                    const text = String(children)
-                    const id = extractSectionId(text)
-                    return <h2 id={id || undefined} className="text-xl font-bold mt-6 mb-2 scroll-mt-4">{children}</h2>
-                  },
-                  h3: ({ children }) => <h3 className="text-lg font-bold mt-4 mb-0">{children}</h3>,
-                  p: ({ children }) => {
-                    const content = getTextContent(children);
-                    if (content.length > 3 && content === content.toUpperCase() && !content.includes('\n')) {
-                      return <h3 className="text-lg font-bold mt-4 mb-0 text-primary">{children}</h3>
-                    }
-                    return <p className="mb-4 leading-relaxed">{processChildren(children)}</p>
-                  },
-                }}
-              >
-                {translatedText.replace(/\n{3,}/g, '\n\n')}
-              </ReactMarkdown>
-            </div>
+          <div className="font-serif text-base leading-relaxed">
+            <ReactMarkdown
+              components={markdownComponents}
+              rehypePlugins={[rehypeRaw]}
+            >
+              {processText(translatedText)}
+            </ReactMarkdown>
           </div>
         )}
       </div>
