@@ -244,13 +244,8 @@ export function Translator({ initialText }: TranslatorProps) {
     doc.text(title, (210 - titleWidth) / 2, 30)
 
     doc.setFontSize(14)
-    doc.setFont("helvetica", "italic")
-    const subtitle = "Omdiktet av Arne Næss"
-    const subtitleWidth = doc.getTextWidth(subtitle)
-    doc.text(subtitle, (210 - subtitleWidth) / 2, 42)
-
     doc.setFont("helvetica", "normal")
-    doc.text("1995", (210 - doc.getTextWidth("1995")) / 2, 52)
+    doc.text("1995", (210 - doc.getTextWidth("1995")) / 2, 42)
 
     doc.setLineWidth(0.5)
     doc.line(20, 70, 190, 70)
@@ -373,8 +368,6 @@ export function Translator({ initialText }: TranslatorProps) {
         <h1 className="font-serif text-3xl md:text-4xl font-bold text-center text-foreground mb-6 text-balance">
           Det industrielle samfunnet og dets framtid
         </h1>
-
-      <p className="font-serif text-lg text-center text-muted-foreground italic mb-1">Omdiktet av Arne Næss</p>
 
       <p className="font-serif text-lg text-center text-muted-foreground mb-8">1995</p>
 
