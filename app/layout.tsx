@@ -22,7 +22,7 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: "Det industrielle samfunnet og dets framtid",
-  description: "Omdiktet av Arne Næss, 1995",
+  description: "1995",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
